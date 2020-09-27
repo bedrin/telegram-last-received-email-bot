@@ -26,7 +26,7 @@ mailLogin = os.environ['MAIL_LOGIN']
 mailPassword = os.environ['MAIL_PASSWORD']
 mailSearch = os.environ['MAIL_SEARCH']
 
-previousStatus = None
+previousStatus = "unknown"
 
 def get_max_email_date():
     mail = imaplib.IMAP4_SSL(mailServer)
@@ -47,9 +47,9 @@ def get_max_email_date():
             if (maxDate == None or local_date > maxDate):
                 maxDate = local_date
                 latestMessageId = num
-            logger.info("Received email on {}".format( local_date.strftime("%a, %d %b %Y %H:%M:%S")))
+            logger.info("Received email on {}".format( local_date.strftime("%a, %d %b %Y %H:%M:%S UTC")))
 
-        logger.info("Latest message with id {} received on {}".format(latestMessageId, maxDate))
+        logger.info("Latest message with id {} received on {}".format(latestMessageId, maxDate.strftime("%a, %d %b %Y %H:%M:%S UTC")))
 
         if (latestMessageId != None):
             oldMessageIds = b" ".join(filter(lambda messageId: messageId != latestMessageId, messageIds))
@@ -67,9 +67,9 @@ def get_max_email_date():
 
 def callback_minute(context: telegram.ext.CallbackContext):
     global previousStatus
-    maxEmailDate = get_max_email_date()
-
-    lag = (datetime.now() - maxEmailDate).total_seconds()
+    maxEmailDate = get_max_email_date().replace(microsecond=0)
+    diff = datetime.now().replace(microsecond=0) - maxEmailDate
+    lag = diff.total_seconds()
     if (lag <= 6*60):
         newStatus = "green"
     elif (lag > 16*60):
@@ -77,31 +77,40 @@ def callback_minute(context: telegram.ext.CallbackContext):
     else:
         newStatus = "amber"
 
-    if (previousStatus == None):
-        previousStatus = newStatus
+    if (previousStatus == newStatus):
         return
-    elif (previousStatus == newStatus):
-        return
-    else:
-        list_of_files = glob.glob("{}*".format(chat_ids_folder))
-        for file in list_of_files:
-            chat_id = os.path.basename(file)
-            logger.info("Sending status to {}".format(chat_id))
-            try:
-                context.bot.send_message(chat_id=chat_id, text="Latest email alert received at {}".format(maxEmailDate.strftime("%a, %d %b %Y %H:%M:%S")))
-                context.bot.send_message(chat_id=chat_id, text="Status changed from {} to {}".format(previousStatus, newStatus))
-            except:
-                logger.info("Cannot send message to chat id {}".format(chat_id))
-        previousStatus = newStatus
 
-def callback_weekend(context: telegram.ext.CallbackContext):
-    lastEmailDate = get_max_email_date()
     list_of_files = glob.glob("{}*".format(chat_ids_folder))
     for file in list_of_files:
         chat_id = os.path.basename(file)
         logger.info("Sending status to {}".format(chat_id))
         try:
-            context.bot.send_message(chat_id=chat_id, text="Latest email alert received at {}".format(lastEmailDate.strftime("%a, %d %b %Y %H:%M:%S")))
+            context.bot.send_message(chat_id=chat_id, text="Latest email alert received {} ago at {}".format(diff, maxEmailDate.strftime("%a, %d %b %Y %H:%M:%S UTC")))
+            context.bot.send_message(chat_id=chat_id, text="Status changed from {} to {}".format(previousStatus, newStatus))
+        except:
+            logger.info("Cannot send message to chat id {}".format(chat_id))
+
+    previousStatus = newStatus
+
+def callback_weekend(context: telegram.ext.CallbackContext):
+
+    maxEmailDate = get_max_email_date().replace(microsecond=0)
+    diff = datetime.now().replace(microsecond=0) - maxEmailDate
+    lag = diff.total_seconds()
+    if (lag <= 6*60):
+        newStatus = "green"
+    elif (lag > 16*60):
+        newStatus = "red"
+    else:
+        newStatus = "amber"
+
+    list_of_files = glob.glob("{}*".format(chat_ids_folder))
+    for file in list_of_files:
+        chat_id = os.path.basename(file)
+        logger.info("Sending status to {}".format(chat_id))
+        try:
+            context.bot.send_message(chat_id=chat_id, text="Latest email alert received {} ago at {}".format(diff, maxEmailDate.strftime("%a, %d %b %Y %H:%M:%S UTC")))
+            context.bot.send_message(chat_id=chat_id, text="Status is {}".format(newStatus))
         except:
             logger.info("Cannot send message to chat id {}".format(chat_id))
 
@@ -120,8 +129,17 @@ def stop(update, context):
     os.remove("{}{}".format(chat_ids_folder, update.message.chat_id))
 
 def status(update, context):
-    lastEmailDate = get_max_email_date()
-    update.message.reply_text("Latest email alert received at {}".format(lastEmailDate.strftime("%a, %d %b %Y %H:%M:%S")))
+    maxEmailDate = get_max_email_date().replace(microsecond=0)
+    diff = datetime.now().replace(microsecond=0) - maxEmailDate
+    lag = diff.total_seconds()
+    if (lag <= 6*60):
+        newStatus = "green"
+    elif (lag > 16*60):
+        newStatus = "red"
+    else:
+        newStatus = "amber"
+    update.message.reply_text("Latest email alert received {} ago at {}".format(diff, maxEmailDate.strftime("%a, %d %b %Y %H:%M:%S UTC")))
+    update.message.reply_text("Status is {}".format(newStatus))
 
 def main():
     get_max_email_date()
