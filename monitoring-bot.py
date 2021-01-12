@@ -70,9 +70,9 @@ def callback_minute(context: telegram.ext.CallbackContext):
     maxEmailDate = get_max_email_date().replace(microsecond=0)
     diff = datetime.now().replace(microsecond=0) - maxEmailDate
     lag = diff.total_seconds()
-    if (lag <= 6*60):
+    if (lag <= 12*60):
         newStatus = "green"
-    elif (lag > 16*60):
+    elif (lag > 24*60):
         newStatus = "red"
     else:
         newStatus = "amber"
