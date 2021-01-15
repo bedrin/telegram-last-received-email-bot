@@ -53,8 +53,9 @@ def get_max_email_date():
 
         if (latestMessageId != None):
             for num in messageIds:          
-                logger.info("About to delete old messages with id {}".format(num))
-                mail.store(num, '+FLAGS', r'(\Deleted)')
+                if (num != latestMessageId):
+                    logger.info("About to delete old messages with id {}".format(num))
+                    mail.store(num, '+FLAGS', r'(\Deleted)')
             typ, response = mail.expunge()
             logger.info("Expunged old mails {}".format(response))
 
