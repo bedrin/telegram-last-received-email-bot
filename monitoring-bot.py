@@ -52,12 +52,18 @@ def get_max_email_date():
         logger.info("Latest message with id {} received on {}".format(latestMessageId, maxDate.strftime("%a, %d %b %Y %H:%M:%S UTC")))
 
         if (latestMessageId != None):
-            oldMessageIds = b" ".join(filter(lambda messageId: messageId != latestMessageId, messageIds))
-            if (oldMessageIds != b''):
-                logger.info("About to delete old messages with ids {}".format(oldMessageIds))
-                mail.store(oldMessageIds, '+FLAGS', r'(\Deleted)')
-                typ, response = mail.expunge()
-                logger.info("Expunged old mails {}".format(response))
+            for num in messageIds:          
+                logger.info("About to delete old messages with id {}".format(num))
+                mail.store(num, '+FLAGS', r'(\Deleted)')
+            typ, response = mail.expunge()
+            logger.info("Expunged old mails {}".format(response))
+
+#            oldMessageIds = b" ".join(filter(lambda messageId: messageId != latestMessageId, messageIds))
+#            if (oldMessageIds != b''):
+#                logger.info("About to delete old messages with ids {}".format(oldMessageIds))
+#                mail.store(oldMessageIds, '+FLAGS', r'(\Deleted)')
+#                typ, response = mail.expunge()
+#                logger.info("Expunged old mails {}".format(response))
 
         return maxDate
 
